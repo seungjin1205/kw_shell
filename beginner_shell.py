@@ -462,14 +462,15 @@ def build_bottom_toolbar():
         text = ""
 
     if not text:
-        default_msg = "명령어를 입력하세요. 예: help, ls, cd, grep | Ctrl+Space: 자동완성 | F2: 도움말 | Ctrl+L: 화면 지우기"
-        if len(default_msg) > cols - 5:
-            default_msg = "입력 예시: help, ls, cd, grep\nCtrl+Space: 자동완성 | F2: 도움말 | Ctrl+L: 화면 지우기"
-        
-        lines = default_msg.split('\n')
-        if any(len(l) > cols - 5 for l in lines):
-            default_msg = "Ctrl+Space: 자동완성 | F2: 도움말"
-        return HTML(f"<bottom-toolbar>{default_msg}</bottom-toolbar>")
+        line1 = "도움말: help 입력 또는 [F2] 키 | 자동완성: [Ctrl+Space] 또는 [Tab]"
+        line2 = "단축키: 화면 정리 [Ctrl+L] | 쉘 종료: [exit] 입력 또는 [Ctrl+D]"
+        if len(line1) > cols - 5:
+            line1 = "도움말: help / F2 | 자동완성: Tab"
+            line2 = "화면정리: Ctrl+L | 종료: exit"
+        if len(line1) > cols - 5:
+            line1 = "help / F2: 도움말"
+            line2 = "Ctrl+L: 화면정리 | exit: 종료"
+        return HTML(f"<bottom-toolbar>{line1}\n{line2}</bottom-toolbar>")
 
     words = text.split()
     cmd = words[0]
@@ -480,18 +481,16 @@ def build_bottom_toolbar():
         params = ", ".join(params_list) if params_list else "파라미터 없음"
         example = info.get("example", "")
 
-        # 1단계: 한 줄 전체 출력 시도
-        full_text = f"{prefix}{command_name}: {desc} | 파라미터: {params} | 예시: {example}"
-        if len(full_text) <= cols - 5:
-            return full_text
-
-        # 2단계: 두 줄 출력 시도 (1행: 명령어 설명, 2행: 파라미터 및 예시)
+        # 1행: prefix + 명령어 + 설명
         line1 = f"{prefix}{command_name}: {desc}"
+        # 2행: 파라미터 + 예시
         line2 = f"파라미터: {params} | 예시: {example}"
 
-        # 2행의 너비 조정
+        # 2행의 너비 조정 (예시 생략 -> 파라미터 축소 -> 파라미터 생략 순)
         if len(line2) > cols - 5:
             line2 = f"파라미터: {params}"
+        if len(line2) > cols - 5:
+            line2 = f"파라미터: {params[:max(10, cols - 15)]}..."
         if len(line2) > cols - 5:
             line2 = "파라미터 생략됨"
 
@@ -510,9 +509,12 @@ def build_bottom_toolbar():
         if real_info:
             content = format_toolbar_content(prefix, real_cmd, real_info)
         else:
-            content = f"단축 명령어: {cmd} → {ALIASES[cmd]}"
-            if len(content) > cols - 5:
-                content = f"{cmd} → {ALIASES[cmd]}"
+            line1 = f"단축 명령어: {cmd} → {ALIASES[cmd]}"
+            line2 = "단축어로 정의된 명령어를 실행합니다."
+            if len(line1) > cols - 5:
+                line1 = f"{cmd} → {ALIASES[cmd]}"
+                line2 = "단축 명령어 실행"
+            content = f"{line1}\n{line2}"
         return HTML(f"<bottom-toolbar>{content}</bottom-toolbar>")
 
     if cmd in COMMANDS:
@@ -522,15 +524,19 @@ def build_bottom_toolbar():
     similar = difflib.get_close_matches(cmd, list(COMMANDS.keys()) + list(ALIASES.keys()), n=1)
 
     if similar:
-        msg = f"'{cmd}' 없음. 혹시 '{similar[0]}'?"
-        if len(msg) > cols - 5:
-            msg = f"혹시 '{similar[0]}'?"
-        return HTML(f"<bottom-toolbar>{msg}</bottom-toolbar>")
+        line1 = f"'{cmd}' 명령어를 찾을 수 없습니다."
+        line2 = f"혹시 '{similar[0]}'를 입력하려고 했나요?"
+        if len(line1) > cols - 5:
+            line1 = f"'{cmd}' 찾을 수 없음"
+            line2 = f"혹시 '{similar[0]}'?"
+        return HTML(f"<bottom-toolbar>{line1}\n{line2}</bottom-toolbar>")
 
-    msg = "등록되지 않은 명령어입니다. 리눅스 명령어라면 실행은 가능할 수 있습니다."
-    if len(msg) > cols - 5:
-        msg = "등록되지 않은 명령어 (실행은 시도함)"
-    return HTML(f"<bottom-toolbar>{msg}</bottom-toolbar>")
+    line1 = "등록되지 않은 명령어입니다."
+    line2 = "리눅스 표준 명령어라면 정상적으로 실행은 가능합니다."
+    if len(line1) > cols - 5:
+        line1 = "등록되지 않은 명령어"
+        line2 = "리눅스 명령어라면 실행 시도함"
+    return HTML(f"<bottom-toolbar>{line1}\n{line2}</bottom-toolbar>")
 
 
 def check_background_jobs():
@@ -567,7 +573,12 @@ def main():
     def _(event):
         event.app.current_buffer.start_completion(select_first=False)
 
+    def get_prompt():
+        cwd = os.getcwd()
+        return HTML(f"<prompt>beginner-shell:{cwd}$ </prompt>")
+
     session = PromptSession(
+        message=get_prompt,
         completer=BeginnerShellCompleter(),
         key_bindings=kb,
         complete_while_typing=True,
@@ -581,10 +592,9 @@ def main():
 
     while True:
         check_background_jobs()
-        cwd = os.getcwd()
 
         try:
-            line = session.prompt(HTML(f"<prompt>beginner-shell:{cwd}$ </prompt>"))
+            line = session.prompt()
 
         except KeyboardInterrupt:
             print("\nCtrl+C 입력됨. 종료하려면 exit를 입력하세요.")
