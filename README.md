@@ -31,6 +31,8 @@ sudo apt install python3 python3-pip python3-venv -y
 python3 -m venv venv
 source venv/bin/activate
 pip install prompt_toolkit
+pip install playwright
+playwright install
 
 python3 beginner_shell.py
 
