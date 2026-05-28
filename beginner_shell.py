@@ -575,28 +575,43 @@ def main():
         event.app.current_buffer.start_completion(select_first=False)
 
     def get_prompt():
+        import shutil
+        import getpass
+        cols, _ = shutil.get_terminal_size()
+        
         cwd = os.getcwd()
         home = str(Path.home())
+        username = getpass.getuser()
         
-        # 홈 디렉터리 단축
+        # Shorten home directory
         if cwd.startswith(home):
             display_path = "~" + cwd[len(home):]
         else:
             display_path = cwd
-            
-        # 경로가 너무 길면 최근 2개 폴더 위주로 단축
-        if len(display_path) > 30:
-            parts = display_path.split(os.sep)
-            if len(parts) > 3:
-                sep = os.sep
-                display_path = f"...{sep}{parts[-2]}{sep}{parts[-1]}"
 
-        # Kali Linux 스타일의 프리미엄 2줄 프롬프트
+        # Calculate expected prompt length
+        prompt_len = len(username) + 2 + len(display_path)
+        
+        # Use 2-line layout only when terminal is too narrow
+        if prompt_len > cols - 10:
+            if len(display_path) > 30:
+                parts = display_path.split(os.sep)
+                if len(parts) > 3:
+                    sep = os.sep
+                    display_path = f"...{sep}{parts[-2]}{sep}{parts[-1]}"
+
+            return HTML(
+                f"<prompt-cyan>\u250c\u2500[</prompt-cyan>"
+                f"<prompt-path>{username}:{display_path}</prompt-path>"
+                f"<prompt-cyan>]</prompt-cyan>\n"
+                f"<prompt-cyan>\u2514\u2500$ </prompt-cyan>"
+            )
+
+        # 1-line layout when terminal is wide enough
         return HTML(
-            f"<prompt-cyan>┌─[</prompt-cyan>"
+            f"<prompt-cyan>{username}:</prompt-cyan>"
             f"<prompt-path>{display_path}</prompt-path>"
-            f"<prompt-cyan>]</prompt-cyan>\n"
-            f"<prompt-cyan>└─$ </prompt-cyan>"
+            f"<prompt-cyan>$ </prompt-cyan>"
         )
 
     session = PromptSession(
