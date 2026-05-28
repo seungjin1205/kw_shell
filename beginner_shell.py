@@ -467,15 +467,98 @@ def build_bottom_toolbar():
         text = ""
 
     if not text:
+        msg = "\ub3c4\uc6c0\ub9d0: help \uc785\ub825 \ub610\ub294 [F2] \ud0a4 | \uc790\ub3d9\uc644\uc131: [Ctrl+Space] \ub610\ub294 [Tab] | \ud654\uba74 \uc815\ub9ac [Ctrl+L] | \uc255 \uc885\ub8cc: [exit]"
+        if len(msg) <= cols - 5:
+            return HTML(f"<bottom-toolbar>{msg}</bottom-toolbar>")
+
         line1 = "\ub3c4\uc6c0\ub9d0: help \uc785\ub825 \ub610\ub294 [F2] \ud0a4 | \uc790\ub3d9\uc644\uc131: [Ctrl+Space] \ub610\ub294 [Tab]"
         line2 = "\ub2e8\ucd95\ud0a4: \ud654\uba74 \uc815\ub9ac [Ctrl+L] | \uc255 \uc885\ub8cc: [exit] \uc785\ub825 \ub610\ub294 [Ctrl+D]"
         if len(line1) > cols - 5:
             line1 = "\ub3c4\uc6c0\ub9d0: help / F2 | \uc790\ub3d9\uc644\uc131: Tab"
             line2 = "\ud654\uba74\uc815\ub9ac: Ctrl+L | \uc885\ub8cc: exit"
         if len(line1) > cols - 5:
-            line1 = "help / F2: \ub3c4\uc6c0\ub9d0"
-            line2 = "Ctrl+L: \ud654\uba74\uc815\ub9ac | exit: \uc885\ub8cc"
+            return HTML(f"<bottom-toolbar>help / F2: \ub3c4\uc6c0\ub9d0 | Ctrl+L: \ud654\uba74\uc815\ub9ac | exit: \uc885\ub8cc</bottom-toolbar>")
         return HTML(f"<bottom-toolbar>{line1}\n{line2}</bottom-toolbar>")
+
+    words = text.split()
+    cmd = words[0]
+
+    def format_toolbar_content(prefix, command_name, info):
+        desc = info.get("desc", "")
+        params_list = info.get("params", [])
+        params = ", ".join(params_list) if params_list else "\ud30c\ub77c\ubbf8\ud130 \uc5c6\uc74c"
+        example = info.get("example", "")
+
+        # 1-line full text check
+        full_text = f"{prefix}{command_name}: {desc} | \ud30c\ub77c\ubbf8\ud130: {params} | \uc608\uc2dc: {example}"
+        if len(full_text) <= cols - 5:
+            return full_text
+
+        # 2-line structure check
+        line1 = f"{prefix}{command_name}: {desc}"
+        line2 = f"\ud30c\ub77c\ubbf8\ud130: {params} | \uc608\uc2dc: {example}"
+
+        if len(line2) > cols - 5:
+            line2 = f"\ud30c\ub77c\ubbf8\ud130: {params}"
+        if len(line2) > cols - 5:
+            line2 = f"\ud30c\ub77c\ubbf8\ud130: {params[:max(10, cols - 15)]}..."
+        if len(line2) > cols - 5:
+            line2 = ""
+
+        if line2:
+            if len(line1) > cols - 5:
+                max_desc_len = max(10, cols - len(prefix) - len(command_name) - 10)
+                line1 = f"{prefix}{command_name}: {desc[:max_desc_len]}..."
+            return f"{line1}\n{line2}"
+
+        # 1-line compressed check
+        max_desc_len = max(10, cols - len(prefix) - len(command_name) - 10)
+        return f"{prefix}{command_name}: {desc[:max_desc_len]}..."
+
+    if cmd in ALIASES:
+        real_cmd = ALIASES[cmd].split()[0]
+        real_info = COMMANDS.get(real_cmd)
+        prefix = f"\ub2e8\ucd95\uc5b4: {cmd} \u2192 {ALIASES[cmd]} | "
+        
+        if real_info:
+            content = format_toolbar_content(prefix, real_cmd, real_info)
+        else:
+            line = f"\ub2e8\ucd95 \uba85\ub839\uc5b4: {cmd} \u2192 {ALIASES[cmd]}"
+            if len(line) <= cols - 5:
+                return HTML(f"<bottom-toolbar>{line}</bottom-toolbar>")
+            line1 = f"\ub2e8\ucd95 \uba85\ub839\uc5b4: {cmd} \u2192 {ALIASES[cmd]}"
+            line2 = "\ub2e8\ucd95\uc5b4\ub85c \uc815\uc758\ub41c \uba85\ub839\uc5b4\ub9ac \uc2e4\ud589\ud569\ub2c8\ub2e4."
+            if len(line1) > cols - 5:
+                line1 = f"{cmd} \u2192 {ALIASES[cmd]}"
+                line2 = "\ub2e8\ucd95 \uba85\ub839\uc5b4 \uc2e4\ud589"
+            content = f"{line1}\n{line2}"
+        return HTML(f"<bottom-toolbar>{content}</bottom-toolbar>")
+
+    if cmd in COMMANDS:
+        content = format_toolbar_content("", cmd, COMMANDS[cmd])
+        return HTML(f"<bottom-toolbar>{content}</bottom-toolbar>")
+
+    similar = difflib.get_close_matches(cmd, list(COMMANDS.keys()) + list(ALIASES.keys()), n=1)
+
+    if similar:
+        line = f"'{cmd}' \uba85\ub839\uc5b4\ub9ac \ucc3e\uc744 \uc218 \uc5c6\uc2b5\ub2c8\ub2e4. \ud639\uc2dc '{similar[0]}'\ub9ac \uc785\ub825\ud558\ub824\uace0 \ud588\ub098\uc694?"
+        if len(line) <= cols - 5:
+            return HTML(f"<bottom-toolbar>{line}</bottom-toolbar>")
+        line1 = f"'{cmd}' \uba85\ub839\uc5b4\ub9ac \ucc3e\uc744 \uc218 \uc5c6\uc2b5\ub2c8\ub2e4."
+        line2 = f"\ud639\uc2dc '{similar[0]}'\ub9ac \uc785\ub825\ud558\ub824\uace0 \ud588\ub098\uc694?"
+        if len(line1) > cols - 5:
+            line1 = f"'{cmd}' \ucc3e\uc744 \uc218 \uc5c6\uc74c"
+            line2 = f"\ud639\uc2dc '{similar[0]}'?"
+        return HTML(f"<bottom-toolbar>{line1}\n{line2}</bottom-toolbar>")
+
+    line = "\ub4f1\ub85d\ub418\uc9c0 \uc54a\uc740 \uba85\ub839\uc5b4\uc785\ub2c8\ub2e4. \ub9ac\ub205\uc2a4 \ud45c\uc900 \uba85\ub839\uc5b4\ub7bc\uba74 \uc815\uc0c1\uc801\uc73c\ub85c \uc2e4\ud589\uc740 \uac00\ub2a5\ud569\ub2c8\ub2e4."
+    if len(line) <= cols - 5:
+        return HTML(f"<bottom-toolbar>{line}</bottom-toolbar>")
+    line1 = "\ub4f1\ub85d\ub418\uc9c0 \uc54a\uc740 \uba85\ub839\uc5b4\uc785\ub2c8\ub2e4."
+    line2 = "\ub9ac\ub205\uc2a4 \ud45c\uc900 \uba85\ub839\uc5b4\ub7bc\uba74 \uc815\uc0c1\uc801\uc73c\ub85c \uc2e4\ud589\uc740 \uac00\ub2a5\ud569\ub2c8\ub2e4."
+    if len(line1) > cols - 5:
+        return HTML(f"<bottom-toolbar>\ub4f1\ub85d\ub418\uc9c0 \uc54a\uc740 \uba85\ub839\uc5b4 (\uc2e4\ud589 \uc2dc\ub3c4\ud568)</bottom-toolbar>")
+    return HTML(f"<bottom-toolbar>{line1}\n{line2}</bottom-toolbar>")
 
     words = text.split()
     cmd = words[0]
