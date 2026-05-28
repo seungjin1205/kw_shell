@@ -555,7 +555,8 @@ def check_background_jobs():
 
 def main():
     style = Style.from_dict({
-        "prompt": "ansigreen bold",
+        "prompt-cyan": "ansicyan bold",
+        "prompt-path": "ansigreen bold",
         "bottom-toolbar": "reverse",
     })
 
@@ -575,7 +576,28 @@ def main():
 
     def get_prompt():
         cwd = os.getcwd()
-        return HTML(f"<prompt>beginner-shell:{cwd}$ </prompt>")
+        home = str(Path.home())
+        
+        # 홈 디렉터리 단축
+        if cwd.startswith(home):
+            display_path = "~" + cwd[len(home):]
+        else:
+            display_path = cwd
+            
+        # 경로가 너무 길면 최근 2개 폴더 위주로 단축
+        if len(display_path) > 30:
+            parts = display_path.split(os.sep)
+            if len(parts) > 3:
+                sep = os.sep
+                display_path = f"...{sep}{parts[-2]}{sep}{parts[-1]}"
+
+        # Kali Linux 스타일의 프리미엄 2줄 프롬프트
+        return HTML(
+            f"<prompt-cyan>┌─[</prompt-cyan>"
+            f"<prompt-path>{display_path}</prompt-path>"
+            f"<prompt-cyan>]</prompt-cyan>\n"
+            f"<prompt-cyan>└─$ </prompt-cyan>"
+        )
 
     session = PromptSession(
         message=get_prompt,
