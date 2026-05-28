@@ -465,7 +465,9 @@ def build_bottom_toolbar():
         default_msg = "명령어를 입력하세요. 예: help, ls, cd, grep | Ctrl+Space: 자동완성 | F2: 도움말 | Ctrl+L: 화면 지우기"
         if len(default_msg) > cols - 5:
             default_msg = "입력 예시: help, ls, cd, grep\nCtrl+Space: 자동완성 | F2: 도움말 | Ctrl+L: 화면 지우기"
-        if len(default_msg.split('\n')[0]) > cols - 5 or len(default_msg.split('\n')[1]) > cols - 5:
+        
+        lines = default_msg.split('\n')
+        if any(len(l) > cols - 5 for l in lines):
             default_msg = "Ctrl+Space: 자동완성 | F2: 도움말"
         return HTML(f"<bottom-toolbar>{default_msg}</bottom-toolbar>")
 
