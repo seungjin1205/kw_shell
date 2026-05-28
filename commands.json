@@ -173,5 +173,60 @@
     "desc": "쉘 세션 동안 사용자가 입력했던 명령어 히스토리 목록을 확인합니다.",
     "params": [],
     "example": "history"
+  },
+  "echo": {
+    "desc": "입력받은 텍스트나 환경 변수의 값을 화면에 출력합니다.",
+    "params": ["\"출력할 텍스트\"", "$변수명"],
+    "example": "echo \"Hello World\""
+  },
+  "less": {
+    "desc": "텍스트 파일의 내용을 한 페이지씩 스크롤하며 읽을 수 있게 해줍니다.",
+    "params": ["파일이름"],
+    "example": "less system.log"
+  },
+  "man": {
+    "desc": "리눅스 명령어의 공식 상세 설명서(Manual)를 봅니다.",
+    "params": ["명령어"],
+    "example": "man grep"
+  },
+  "whoami": {
+    "desc": "현재 로그인하여 사용 중인 사용자의 계정명을 출력합니다.",
+    "params": [],
+    "example": "whoami"
+  },
+  "date": {
+    "desc": "시스템의 현재 날짜와 시간 정보를 출력하거나 설정합니다.",
+    "params": ["\"+format\""],
+    "example": "date"
+  },
+  "uname": {
+    "desc": "시스템과 OS 커널의 상세 정보를 출력합니다.",
+    "params": ["-a", "-r", "-m"],
+    "example": "uname -a"
+  },
+  "hostname": {
+    "desc": "현재 컴퓨터 시스템의 호스트 이름(컴퓨터 명칭)을 출력하거나 변경합니다.",
+    "params": [],
+    "example": "hostname"
+  },
+  "env": {
+    "desc": "시스템에 정의된 전체 환경 변수 목록을 보여주거나 환경을 설정합니다.",
+    "params": [],
+    "example": "env"
+  },
+  "which": {
+    "desc": "지정한 명령어의 실행 파일이 위치한 실제 시스템 경로를 찾아서 출력합니다.",
+    "params": ["명령어"],
+    "example": "which python3"
+  },
+  "alias": {
+    "desc": "자주 쓰는 긴 명령어 대신 사용할 새로운 단축어(Alias)를 생성하거나 보여줍니다.",
+    "params": ["단축어=\"실제명령어\""],
+    "example": "alias ll=\"ls -al\""
+  },
+  "unalias": {
+    "desc": "등록된 단축 명령어(Alias) 설정을 해제합니다.",
+    "params": ["단축어"],
+    "example": "unalias ll"
   }
 }

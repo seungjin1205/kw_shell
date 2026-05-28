@@ -223,6 +223,23 @@ def explain_command(cmd):
 
 
 background_processes = []
+local_variables = {}
+
+
+def expand_variables(line):
+    import re
+    def replace_braces(match):
+        var_name = match.group(1)
+        return local_variables.get(var_name, os.environ.get(var_name, ""))
+        
+    line = re.sub(r'\${([a-zA-Z_][a-zA-Z0-9_]*)}', replace_braces, line)
+    
+    def replace_plain(match):
+        var_name = match.group(1)
+        return local_variables.get(var_name, os.environ.get(var_name, ""))
+        
+    line = re.sub(r'\$([a-zA-Z_][a-zA-Z0-9]*)', replace_plain, line)
+    return line
 
 
 def run_builtin(args, session=None):
@@ -273,9 +290,15 @@ def run_builtin(args, session=None):
             if "=" in arg:
                 key, val = arg.split("=", 1)
                 os.environ[key] = val
+                local_variables[key] = val
                 print(f"환경 변수 설정 완료: {key}={val}")
             else:
-                print("사용법: export 변수명=값")
+                key = arg
+                if key in local_variables:
+                    os.environ[key] = local_variables[key]
+                    print(f"환경 변수로 등록 완료 (로컬 변수 '{key}'의 값 복사): {key}={os.environ[key]}")
+                else:
+                    print(f"오류: '{key}'라는 로컬 변수가 존재하지 않습니다.")
 
     elif cmd == "history":
         if session and hasattr(session, "history"):
@@ -333,21 +356,30 @@ def make_readable_output(cmd, result):
 
 def run_external(line, args, is_background=False):
     import sys
+    import re
     cmd = args[0]
     has_pipeline_or_redir = any(symbol in line for symbol in ["|", ">", "<"])
     capture_cmds = ["df", "free", "ps"]
     should_capture = (cmd in capture_cmds) and not has_pipeline_or_redir and not is_background
 
+    def inject_grep_color(cmd_line):
+        if "--color" in cmd_line:
+            return cmd_line
+        return re.sub(r'\b(grep|egrep|fgrep)\b', r'\1 --color=auto', cmd_line)
+
     try:
         if is_background:
+            line_to_run = inject_grep_color(line)
             if has_pipeline_or_redir:
                 p = subprocess.Popen(
-                    line,
+                    line_to_run,
                     shell=True,
                     stdin=subprocess.DEVNULL,
                     preexec_fn=os.setsid if (os.name != 'nt' and hasattr(os, 'setsid')) else None
                 )
             else:
+                if cmd in ["grep", "egrep", "fgrep"] and "--color" not in line:
+                    args.append("--color=auto")
                 p = subprocess.Popen(
                     args,
                     stdin=subprocess.DEVNULL,
@@ -369,8 +401,9 @@ def run_external(line, args, is_background=False):
             make_readable_output(cmd, result)
         else:
             if has_pipeline_or_redir:
+                line_to_run = inject_grep_color(line)
                 subprocess.run(
-                    line,
+                    line_to_run,
                     shell=True,
                     stdin=sys.stdin,
                     stdout=sys.stdout,
@@ -382,6 +415,9 @@ def run_external(line, args, is_background=False):
                         args.append("--color=auto")
                     elif "--color=auto" not in args:
                         args.append("--color=auto")
+
+                if cmd in ["grep", "egrep", "fgrep"] and "--color" not in line:
+                    args.append("--color=auto")
 
                 subprocess.run(
                     args,
@@ -428,8 +464,8 @@ def build_bottom_toolbar():
     if not text:
         default_msg = "명령어를 입력하세요. 예: help, ls, cd, grep | Ctrl+Space: 자동완성 | F2: 도움말 | Ctrl+L: 화면 지우기"
         if len(default_msg) > cols - 5:
-            default_msg = "도움말: help | Ctrl+Space: 자동완성 | F2: 도움말"
-        if len(default_msg) > cols - 5:
+            default_msg = "입력 예시: help, ls, cd, grep\nCtrl+Space: 자동완성 | F2: 도움말 | Ctrl+L: 화면 지우기"
+        if len(default_msg.split('\n')[0]) > cols - 5 or len(default_msg.split('\n')[1]) > cols - 5:
             default_msg = "Ctrl+Space: 자동완성 | F2: 도움말"
         return HTML(f"<bottom-toolbar>{default_msg}</bottom-toolbar>")
 
@@ -442,20 +478,27 @@ def build_bottom_toolbar():
         params = ", ".join(params_list) if params_list else "파라미터 없음"
         example = info.get("example", "")
 
+        # 1단계: 한 줄 전체 출력 시도
         full_text = f"{prefix}{command_name}: {desc} | 파라미터: {params} | 예시: {example}"
         if len(full_text) <= cols - 5:
             return full_text
 
-        no_example = f"{prefix}{command_name}: {desc} | 파라미터: {params}"
-        if len(no_example) <= cols - 5:
-            return no_example
+        # 2단계: 두 줄 출력 시도 (1행: 명령어 설명, 2행: 파라미터 및 예시)
+        line1 = f"{prefix}{command_name}: {desc}"
+        line2 = f"파라미터: {params} | 예시: {example}"
 
-        no_params = f"{prefix}{command_name}: {desc}"
-        if len(no_params) <= cols - 5:
-            return no_params
+        # 2행의 너비 조정
+        if len(line2) > cols - 5:
+            line2 = f"파라미터: {params}"
+        if len(line2) > cols - 5:
+            line2 = "파라미터 생략됨"
 
-        truncated_desc = desc[:max(10, cols - len(prefix) - len(command_name) - 10)] + "..."
-        return f"{prefix}{command_name}: {truncated_desc}"
+        # 1행의 너비 조정
+        if len(line1) > cols - 5:
+            max_desc_len = max(10, cols - len(prefix) - len(command_name) - 10)
+            line1 = f"{prefix}{command_name}: {desc[:max_desc_len]}..."
+
+        return f"{line1}\n{line2}"
 
     if cmd in ALIASES:
         real_cmd = ALIASES[cmd].split()[0]
@@ -554,8 +597,8 @@ def main():
         if not line:
             continue
 
-        # 환경 변수 치환 ($VAR 및 ${VAR} 형태)
-        line = os.path.expandvars(line)
+        # 환경 변수 및 로컬 변수 치환 ($VAR 및 ${VAR} 형태)
+        line = expand_variables(line)
 
         # 백그라운드 실행 여부 파악 (& 기호)
         is_background = False
@@ -580,6 +623,16 @@ def main():
 
         if not args:
             continue
+
+        # 로컬 변수 바인딩 처리 (예: MY_VAR=hello)
+        if "=" in args[0]:
+            parts = args[0].split("=", 1)
+            import re
+            if re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', parts[0]):
+                key, val = parts[0], parts[1]
+                local_variables[key] = val
+                print(f"변수 설정 완료 (로컬 스코프): {key} = '{val}'")
+                continue
 
         # export/history 등도 builtin으로 취급할 수 있도록 명시적으로 포함
         if args[0] in COMMANDS or args[0] in ["export", "history"]:
