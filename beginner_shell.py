@@ -564,7 +564,8 @@ def main():
 
     @kb.add("c-l")
     def _(event):
-        os.system("cls" if os.name == "nt" else "clear")
+        event.app.renderer.clear()
+        event.app.invalidate()
 
     @kb.add("f2")
     def _(event):
