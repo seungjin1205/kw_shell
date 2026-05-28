@@ -6,6 +6,7 @@ import subprocess
 import difflib
 import json
 import getpass
+import re
 from pathlib import Path
 
 from prompt_toolkit import PromptSession
@@ -228,7 +229,6 @@ local_variables = {}
 
 
 def expand_variables(line):
-    import re
     def replace_braces(match):
         var_name = match.group(1)
         return local_variables.get(var_name, os.environ.get(var_name, ""))
@@ -357,7 +357,6 @@ def make_readable_output(cmd, result):
 
 def run_external(line, args, is_background=False):
     import sys
-    import re
     cmd = args[0]
     has_pipeline_or_redir = any(symbol in line for symbol in ["|", ">", "<"])
     capture_cmds = ["df", "free", "ps"]
@@ -467,17 +466,17 @@ def build_bottom_toolbar():
         text = ""
 
     if not text:
-        msg = "\ub3c4\uc6c0\ub9d0: help \uc785\ub825 \ub610\ub294 [F2] \ud0a4 | \uc790\ub3d9\uc644\uc131: [Ctrl+Space] \ub610\ub294 [Tab] | \ud654\uba74 \uc815\ub9ac [Ctrl+L] | \uc255 \uc885\ub8cc: [exit]"
+        msg = "도움말: help 입력 또는 [F2] 키 | 자동완성: [Ctrl+Space] 또는 [Tab] | 화면 정리 [Ctrl+L] | 쉘 종료: [exit]"
         if len(msg) <= cols - 5:
             return HTML(f"<bottom-toolbar>{msg}</bottom-toolbar>")
 
-        line1 = "\ub3c4\uc6c0\ub9d0: help \uc785\ub825 \ub610\ub294 [F2] \ud0a4 | \uc790\ub3d9\uc644\uc131: [Ctrl+Space] \ub610\ub294 [Tab]"
-        line2 = "\ub2e8\ucd95\ud0a4: \ud654\uba74 \uc815\ub9ac [Ctrl+L] | \uc255 \uc885\ub8cc: [exit] \uc785\ub825 \ub610\ub294 [Ctrl+D]"
+        line1 = "도움말: help 입력 또는 [F2] 키 | 자동완성: [Ctrl+Space] 또는 [Tab]"
+        line2 = "단축키: 화면 정리 [Ctrl+L] | 쉘 종료: [exit] 입력 또는 [Ctrl+D]"
         if len(line1) > cols - 5:
-            line1 = "\ub3c4\uc6c0\ub9d0: help / F2 | \uc790\ub3d9\uc644\uc131: Tab"
-            line2 = "\ud654\uba74\uc815\ub9ac: Ctrl+L | \uc885\ub8cc: exit"
+            line1 = "도움말: help / F2 | 자동완성: Tab"
+            line2 = "화면정리: Ctrl+L | 종료: exit"
         if len(line1) > cols - 5:
-            return HTML(f"<bottom-toolbar>help / F2: \ub3c4\uc6c0\ub9d0 | Ctrl+L: \ud654\uba74\uc815\ub9ac | exit: \uc885\ub8cc</bottom-toolbar>")
+            return HTML(f"<bottom-toolbar>help / F2: 도움말 | Ctrl+L: 화면정리 | exit: 종료</bottom-toolbar>")
         return HTML(f"<bottom-toolbar>{line1}\n{line2}</bottom-toolbar>")
 
     words = text.split()
@@ -486,22 +485,22 @@ def build_bottom_toolbar():
     def format_toolbar_content(prefix, command_name, info):
         desc = info.get("desc", "")
         params_list = info.get("params", [])
-        params = ", ".join(params_list) if params_list else "\ud30c\ub77c\ubbf8\ud130 \uc5c6\uc74c"
+        params = ", ".join(params_list) if params_list else "파라미터 없음"
         example = info.get("example", "")
 
         # 1-line full text check
-        full_text = f"{prefix}{command_name}: {desc} | \ud30c\ub77c\ubbf8\ud130: {params} | \uc608\uc2dc: {example}"
+        full_text = f"{prefix}{command_name}: {desc} | 파라미터: {params} | 예시: {example}"
         if len(full_text) <= cols - 5:
             return full_text
 
         # 2-line structure check
         line1 = f"{prefix}{command_name}: {desc}"
-        line2 = f"\ud30c\ub77c\ubbf8\ud130: {params} | \uc608\uc2dc: {example}"
+        line2 = f"파라미터: {params} | 예시: {example}"
 
         if len(line2) > cols - 5:
-            line2 = f"\ud30c\ub77c\ubbf8\ud130: {params}"
+            line2 = f"파라미터: {params}"
         if len(line2) > cols - 5:
-            line2 = f"\ud30c\ub77c\ubbf8\ud130: {params[:max(10, cols - 15)]}..."
+            line2 = f"파라미터: {params[:max(10, cols - 15)]}..."
         if len(line2) > cols - 5:
             line2 = ""
 
@@ -518,151 +517,14 @@ def build_bottom_toolbar():
     if cmd in ALIASES:
         real_cmd = ALIASES[cmd].split()[0]
         real_info = COMMANDS.get(real_cmd)
-        prefix = f"\ub2e8\ucd95\uc5b4: {cmd} \u2192 {ALIASES[cmd]} | "
-        
-        if real_info:
-            content = format_toolbar_content(prefix, real_cmd, real_info)
-        else:
-            line = f"\ub2e8\ucd95 \uba85\ub839\uc5b4: {cmd} \u2192 {ALIASES[cmd]}"
-            if len(line) <= cols - 5:
-                return HTML(f"<bottom-toolbar>{line}</bottom-toolbar>")
-            line1 = f"\ub2e8\ucd95 \uba85\ub839\uc5b4: {cmd} \u2192 {ALIASES[cmd]}"
-            line2 = "\ub2e8\ucd95\uc5b4\ub85c \uc815\uc758\ub41c \uba85\ub839\uc5b4\ub9ac \uc2e4\ud589\ud569\ub2c8\ub2e4."
-            if len(line1) > cols - 5:
-                line1 = f"{cmd} \u2192 {ALIASES[cmd]}"
-                line2 = "\ub2e8\ucd95 \uba85\ub839\uc5b4 \uc2e4\ud589"
-            content = f"{line1}\n{line2}"
-        return HTML(f"<bottom-toolbar>{content}</bottom-toolbar>")
-
-    if cmd in COMMANDS:
-        content = format_toolbar_content("", cmd, COMMANDS[cmd])
-        return HTML(f"<bottom-toolbar>{content}</bottom-toolbar>")
-
-    similar = difflib.get_close_matches(cmd, list(COMMANDS.keys()) + list(ALIASES.keys()), n=1)
-
-    if similar:
-        line = f"'{cmd}' \uba85\ub839\uc5b4\ub9ac \ucc3e\uc744 \uc218 \uc5c6\uc2b5\ub2c8\ub2e4. \ud639\uc2dc '{similar[0]}'\ub9ac \uc785\ub825\ud558\ub824\uace0 \ud588\ub098\uc694?"
-        if len(line) <= cols - 5:
-            return HTML(f"<bottom-toolbar>{line}</bottom-toolbar>")
-        line1 = f"'{cmd}' \uba85\ub839\uc5b4\ub9ac \ucc3e\uc744 \uc218 \uc5c6\uc2b5\ub2c8\ub2e4."
-        line2 = f"\ud639\uc2dc '{similar[0]}'\ub9ac \uc785\ub825\ud558\ub824\uace0 \ud588\ub098\uc694?"
-        if len(line1) > cols - 5:
-            line1 = f"'{cmd}' \ucc3e\uc744 \uc218 \uc5c6\uc74c"
-            line2 = f"\ud639\uc2dc '{similar[0]}'?"
-        return HTML(f"<bottom-toolbar>{line1}\n{line2}</bottom-toolbar>")
-
-    line = "\ub4f1\ub85d\ub418\uc9c0 \uc54a\uc740 \uba85\ub839\uc5b4\uc785\ub2c8\ub2e4. \ub9ac\ub205\uc2a4 \ud45c\uc900 \uba85\ub839\uc5b4\ub7bc\uba74 \uc815\uc0c1\uc801\uc73c\ub85c \uc2e4\ud589\uc740 \uac00\ub2a5\ud569\ub2c8\ub2e4."
-    if len(line) <= cols - 5:
-        return HTML(f"<bottom-toolbar>{line}</bottom-toolbar>")
-    line1 = "\ub4f1\ub85d\ub418\uc9c0 \uc54a\uc740 \uba85\ub839\uc5b4\uc785\ub2c8\ub2e4."
-    line2 = "\ub9ac\ub205\uc2a4 \ud45c\uc900 \uba85\ub839\uc5b4\ub7bc\uba74 \uc815\uc0c1\uc801\uc73c\ub85c \uc2e4\ud589\uc740 \uac00\ub2a5\ud569\ub2c8\ub2e4."
-    if len(line1) > cols - 5:
-        return HTML(f"<bottom-toolbar>\ub4f1\ub85d\ub418\uc9c0 \uc54a\uc740 \uba85\ub839\uc5b4 (\uc2e4\ud589 \uc2dc\ub3c4\ud568)</bottom-toolbar>")
-    return HTML(f"<bottom-toolbar>{line1}\n{line2}</bottom-toolbar>")
-
-    words = text.split()
-    cmd = words[0]
-
-    def format_toolbar_content(prefix, command_name, info):
-        desc = info.get("desc", "")
-        params_list = info.get("params", [])
-        params = ", ".join(params_list) if params_list else "\ud30c\ub77c\ubbf8\ud130 \uc5c6\uc74c"
-        example = info.get("example", "")
-
-        # 1line: prefix + command + desc
-        line1 = f"{prefix}{command_name}: {desc}"
-        # 2line: params + example
-        line2 = f"\ud30c\ub77c\ubbf8\ud130: {params} | \uc608\uc2dc: {example}"
-
-        # 2line adjustment
-        if len(line2) > cols - 5:
-            line2 = f"\ud30c\ub77c\ubbf8\ud130: {params}"
-        if len(line2) > cols - 5:
-            line2 = f"\ud30c\ub77c\ubbf8\ud130: {params[:max(10, cols - 15)]}..."
-        if len(line2) > cols - 5:
-            line2 = "\ud30c\ub77c\ubbf8\ud130 \uc0dd\ub7b5\ub42c"
-
-        # 1line adjustment
-        if len(line1) > cols - 5:
-            max_desc_len = max(10, cols - len(prefix) - len(command_name) - 10)
-            line1 = f"{prefix}{command_name}: {desc[:max_desc_len]}..."
-
-        return f"{line1}\n{line2}"
-
-    if cmd in ALIASES:
-        real_cmd = ALIASES[cmd].split()[0]
-        real_info = COMMANDS.get(real_cmd)
-        prefix = f"\ub2e8\ucd95\uc5b4: {cmd} \u2192 {ALIASES[cmd]} | "
-        
-        if real_info:
-            content = format_toolbar_content(prefix, real_cmd, real_info)
-        else:
-            line1 = f"\ub2e8\ucd95 \uba85\ub839\uc5b4: {cmd} \u2192 {ALIASES[cmd]}"
-            line2 = "\ub2e8\ucd95\uc5b4\ub85c \uc815\uc758\ub41c \uba85\ub839\uc5b4\ub9ac \uc2e4\ud589\ud569\ub2c8\ub2e4."
-            if len(line1) > cols - 5:
-                line1 = f"{cmd} \u2192 {ALIASES[cmd]}"
-                line2 = "\ub2e8\ucd95 \uba85\ub839\uc5b4 \uc2e4\ud589"
-            content = f"{line1}\n{line2}"
-        return HTML(f"<bottom-toolbar>{content}</bottom-toolbar>")
-
-    if cmd in COMMANDS:
-        content = format_toolbar_content("", cmd, COMMANDS[cmd])
-        return HTML(f"<bottom-toolbar>{content}</bottom-toolbar>")
-
-    similar = difflib.get_close_matches(cmd, list(COMMANDS.keys()) + list(ALIASES.keys()), n=1)
-
-    if similar:
-        line1 = f"'{cmd}' \uba85\ub839\uc5b4\ub9ac \ucc3e\uc744 \uc218 \uc5c6\uc2b5\ub2c8\ub2e4."
-        line2 = f"\ud639\uc2dc '{similar[0]}'\ub9ac \uc785\ub825\ud558\ub824\uace0 \ud588\ub098\uc694?"
-        if len(line1) > cols - 5:
-            line1 = f"'{cmd}' \ucc3e\uc744 \uc218 \uc5c6\uc74c"
-            line2 = f"\ud639\uc2dc '{similar[0]}'?"
-        return HTML(f"<bottom-toolbar>{line1}\n{line2}</bottom-toolbar>")
-
-    line1 = "\ub4f1\ub85d\ub418\uc9c0 \uc54a\uc740 \uba85\ub839\uc5b4\uc785\ub2c8\ub2e4."
-    line2 = "\ub9ac\ub205\uc2a4 \ud45c\uc900 \uba85\ub839\uc5b4\ub7bc\uba74 \uc815\uc0c1\uc801\uc73c\ub85c \uc2e4\ud589\uc740 \uac00\ub2a5\ud569\ub2c8\ub2e4."
-    if len(line1) > cols - 5:
-        line1 = "\ub4f1\ub85d\ub418\uc9c0 \uc54a\uc740 \uba85\ub839\uc5b4"
-        line2 = "\ub9ac\ub205\uc2a4 \uba85\ub839\uc5b4\ub7bc\uba74 \uc2e4\ud589 \uc2dc\ub3c4\ud568"
-    return HTML(f"<bottom-toolbar>{line1}\n{line2}</bottom-toolbar>")
-
-    words = text.split()
-    cmd = words[0]
-
-    def format_toolbar_content(prefix, command_name, info):
-        desc = info.get("desc", "")
-        params_list = info.get("params", [])
-        params = ", ".join(params_list) if params_list else "파라미터 없음"
-        example = info.get("example", "")
-
-        # 1행: prefix + 명령어 + 설명
-        line1 = f"{prefix}{command_name}: {desc}"
-        # 2행: 파라미터 + 예시
-        line2 = f"파라미터: {params} | 예시: {example}"
-
-        # 2행의 너비 조정 (예시 생략 -> 파라미터 축소 -> 파라미터 생략 순)
-        if len(line2) > cols - 5:
-            line2 = f"파라미터: {params}"
-        if len(line2) > cols - 5:
-            line2 = f"파라미터: {params[:max(10, cols - 15)]}..."
-        if len(line2) > cols - 5:
-            line2 = "파라미터 생략됨"
-
-        # 1행의 너비 조정
-        if len(line1) > cols - 5:
-            max_desc_len = max(10, cols - len(prefix) - len(command_name) - 10)
-            line1 = f"{prefix}{command_name}: {desc[:max_desc_len]}..."
-
-        return f"{line1}\n{line2}"
-
-    if cmd in ALIASES:
-        real_cmd = ALIASES[cmd].split()[0]
-        real_info = COMMANDS.get(real_cmd)
         prefix = f"단축어: {cmd} → {ALIASES[cmd]} | "
         
         if real_info:
             content = format_toolbar_content(prefix, real_cmd, real_info)
         else:
+            line = f"단축 명령어: {cmd} → {ALIASES[cmd]}"
+            if len(line) <= cols - 5:
+                return HTML(f"<bottom-toolbar>{line}</bottom-toolbar>")
             line1 = f"단축 명령어: {cmd} → {ALIASES[cmd]}"
             line2 = "단축어로 정의된 명령어를 실행합니다."
             if len(line1) > cols - 5:
@@ -678,6 +540,9 @@ def build_bottom_toolbar():
     similar = difflib.get_close_matches(cmd, list(COMMANDS.keys()) + list(ALIASES.keys()), n=1)
 
     if similar:
+        line = f"'{cmd}' 명령어를 찾을 수 없습니다. 혹시 '{similar[0]}'를 입력하려고 했나요?"
+        if len(line) <= cols - 5:
+            return HTML(f"<bottom-toolbar>{line}</bottom-toolbar>")
         line1 = f"'{cmd}' 명령어를 찾을 수 없습니다."
         line2 = f"혹시 '{similar[0]}'를 입력하려고 했나요?"
         if len(line1) > cols - 5:
@@ -685,11 +550,13 @@ def build_bottom_toolbar():
             line2 = f"혹시 '{similar[0]}'?"
         return HTML(f"<bottom-toolbar>{line1}\n{line2}</bottom-toolbar>")
 
+    line = "등록되지 않은 명령어입니다. 리눅스 표준 명령어라면 정상적으로 실행은 가능합니다."
+    if len(line) <= cols - 5:
+        return HTML(f"<bottom-toolbar>{line}</bottom-toolbar>")
     line1 = "등록되지 않은 명령어입니다."
     line2 = "리눅스 표준 명령어라면 정상적으로 실행은 가능합니다."
     if len(line1) > cols - 5:
-        line1 = "등록되지 않은 명령어"
-        line2 = "리눅스 명령어라면 실행 시도함"
+        return HTML(f"<bottom-toolbar>등록되지 않은 명령어 (실행 시도함)</bottom-toolbar>")
     return HTML(f"<bottom-toolbar>{line1}\n{line2}</bottom-toolbar>")
 
 
@@ -718,8 +585,7 @@ def main():
 
     @kb.add("c-l")
     def _(event):
-        event.app.renderer.clear()
-        event.app.invalidate()
+        os.system("cls" if os.name == "nt" else "clear")
 
     @kb.add("f2")
     def _(event):
@@ -761,17 +627,10 @@ def main():
 
         # Always return Kali Linux style 2-line prompt
         return HTML(
-            f"<prompt-cyan>\u250c\u2500[</prompt-cyan>"
+            f"<prompt-cyan>┌─[</prompt-cyan>"
             f"<prompt-path>{username}:{display_path}</prompt-path>"
             f"<prompt-cyan>]</prompt-cyan>\n"
-            f"<prompt-cyan>\u2514\u2500$ </prompt-cyan>"
-        )
-
-        # 1-line layout when terminal is wide enough
-        return HTML(
-            f"<prompt-cyan>{username}:</prompt-cyan>"
-            f"<prompt-path>{display_path}</prompt-path>"
-            f"<prompt-cyan>$ </prompt-cyan>"
+            f"<prompt-cyan>└─$ </prompt-cyan>"
         )
 
     session = PromptSession(
