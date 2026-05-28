@@ -4,6 +4,7 @@ import os
 import shlex
 import subprocess
 import difflib
+import json
 from pathlib import Path
 
 from prompt_toolkit import PromptSession
@@ -14,7 +15,7 @@ from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.styles import Style
 
 
-COMMANDS = {
+DEFAULT_COMMANDS = {
     "help": {
         "desc": "사용 가능한 명령어 목록을 보여줍니다.",
         "params": [],
@@ -62,8 +63,8 @@ COMMANDS = {
     },
     "grep": {
         "desc": "파일 내용에서 특정 문자열이나 패턴을 검색합니다.",
-        "params": ['"검색어"', "-n", "-i", "-r"],
-        "example": 'grep -n "main" program.c',
+        "params": ["\"검색어\"", "-n", "-i", "-r"],
+        "example": "grep -n \"main\" program.c",
     },
     "cp": {
         "desc": "파일이나 디렉터리를 복사합니다.",
@@ -101,6 +102,21 @@ COMMANDS = {
         "example": "explain grep",
     },
 }
+
+
+def load_commands():
+    try:
+        script_dir = Path(__file__).parent
+        json_path = script_dir / "commands.json"
+        if json_path.exists():
+            with open(json_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+    except Exception as e:
+        print(f"[경고] commands.json 로드 중 오류 발생: {e}")
+    return DEFAULT_COMMANDS
+
+
+COMMANDS = load_commands()
 
 
 ALIASES = {
@@ -206,7 +222,10 @@ def explain_command(cmd):
     print(f"사용 예시: {info['example']}\n")
 
 
-def run_builtin(args):
+background_processes = []
+
+
+def run_builtin(args, session=None):
     cmd = args[0]
 
     if cmd == "exit":
@@ -217,7 +236,7 @@ def run_builtin(args):
         print_help()
 
     elif cmd == "clear":
-        os.system("clear")
+        os.system("cls" if os.name == "nt" else "clear")
 
     elif cmd == "pwd":
         print(f"현재 위치: {os.getcwd()}")
@@ -244,6 +263,27 @@ def run_builtin(args):
             print("예시: explain grep")
         else:
             explain_command(args[1])
+
+    elif cmd == "export":
+        if len(args) < 2:
+            for k, v in os.environ.items():
+                print(f"export {k}={shlex.quote(v)}")
+        else:
+            arg = args[1]
+            if "=" in arg:
+                key, val = arg.split("=", 1)
+                os.environ[key] = val
+                print(f"환경 변수 설정 완료: {key}={val}")
+            else:
+                print("사용법: export 변수명=값")
+
+    elif cmd == "history":
+        if session and hasattr(session, "history"):
+            history_strings = list(session.history.get_strings())
+            for idx, h_cmd in enumerate(history_strings, 1):
+                print(f"  {idx:<4}  {h_cmd}")
+        else:
+            print("히스토리 내역이 없습니다.")
 
     else:
         return False
@@ -291,30 +331,73 @@ def make_readable_output(cmd, result):
         print("- 권한 문제가 있다면 sudo가 필요한 상황일 수 있습니다.\n")
 
 
-def run_external(args):
+def run_external(line, args, is_background=False):
+    import sys
     cmd = args[0]
+    has_pipeline_or_redir = any(symbol in line for symbol in ["|", ">", "<"])
+    capture_cmds = ["df", "free", "ps"]
+    should_capture = (cmd in capture_cmds) and not has_pipeline_or_redir and not is_background
 
     try:
-        result = subprocess.run(
-            args,
-            text=True,
-            capture_output=True,
-        )
-        make_readable_output(cmd, result)
+        if is_background:
+            if has_pipeline_or_redir:
+                p = subprocess.Popen(
+                    line,
+                    shell=True,
+                    stdin=subprocess.DEVNULL,
+                    preexec_fn=os.setsid if (os.name != 'nt' and hasattr(os, 'setsid')) else None
+                )
+            else:
+                p = subprocess.Popen(
+                    args,
+                    stdin=subprocess.DEVNULL,
+                    preexec_fn=os.setsid if (os.name != 'nt' and hasattr(os, 'setsid')) else None
+                )
+            background_processes.append({
+                "process": p,
+                "line": line
+            })
+            print(f"[백그라운드 작업 시작] PID: {p.pid} - {line}")
+            return
+
+        if should_capture:
+            result = subprocess.run(
+                args,
+                text=True,
+                capture_output=True,
+            )
+            make_readable_output(cmd, result)
+        else:
+            if has_pipeline_or_redir:
+                subprocess.run(
+                    line,
+                    shell=True,
+                    stdin=sys.stdin,
+                    stdout=sys.stdout,
+                    stderr=sys.stderr,
+                )
+            else:
+                if cmd == "ls" and "--color" not in line and os.name != 'nt':
+                    if len(args) == 1:
+                        args.append("--color=auto")
+                    elif "--color=auto" not in args:
+                        args.append("--color=auto")
+
+                subprocess.run(
+                    args,
+                    stdin=sys.stdin,
+                    stdout=sys.stdout,
+                    stderr=sys.stderr,
+                )
 
     except FileNotFoundError:
         similar = difflib.get_close_matches(cmd, list(COMMANDS.keys()), n=1)
-
         print(f"오류: '{cmd}' 명령어를 찾을 수 없습니다.")
-
         if similar:
             print(f"혹시 '{similar[0]}' 명령어를 입력하려고 했나요?")
-
         print("help를 입력하면 이 쉘에서 추천하는 명령어를 볼 수 있습니다.")
-
     except PermissionError:
         print("오류: 실행 권한이 없습니다.")
-
     except Exception as e:
         print(f"알 수 없는 오류가 발생했습니다: {e}")
 
@@ -333,75 +416,90 @@ def expand_alias(line):
 
 
 def build_bottom_toolbar():
+    import shutil
+    cols, _ = shutil.get_terminal_size()
+
     try:
         app = get_app()
         text = app.current_buffer.text.strip()
     except Exception:
-        return HTML(
-            "<bottom-toolbar>"
-            "명령어를 입력하세요. 예: help, ls, cd, grep"
-            "</bottom-toolbar>"
-        )
+        text = ""
 
     if not text:
-        return HTML(
-            "<bottom-toolbar>"
-            "명령어를 입력하세요. 예: help, ls, cd, grep | "
-            "Ctrl+Space: 자동완성 | F2: 도움말 | Ctrl+L: 화면 지우기"
-            "</bottom-toolbar>"
-        )
+        default_msg = "명령어를 입력하세요. 예: help, ls, cd, grep | Ctrl+Space: 자동완성 | F2: 도움말 | Ctrl+L: 화면 지우기"
+        if len(default_msg) > cols - 5:
+            default_msg = "도움말: help | Ctrl+Space: 자동완성 | F2: 도움말"
+        if len(default_msg) > cols - 5:
+            default_msg = "Ctrl+Space: 자동완성 | F2: 도움말"
+        return HTML(f"<bottom-toolbar>{default_msg}</bottom-toolbar>")
 
     words = text.split()
     cmd = words[0]
 
+    def format_toolbar_content(prefix, command_name, info):
+        desc = info.get("desc", "")
+        params_list = info.get("params", [])
+        params = ", ".join(params_list) if params_list else "파라미터 없음"
+        example = info.get("example", "")
+
+        full_text = f"{prefix}{command_name}: {desc} | 파라미터: {params} | 예시: {example}"
+        if len(full_text) <= cols - 5:
+            return full_text
+
+        no_example = f"{prefix}{command_name}: {desc} | 파라미터: {params}"
+        if len(no_example) <= cols - 5:
+            return no_example
+
+        no_params = f"{prefix}{command_name}: {desc}"
+        if len(no_params) <= cols - 5:
+            return no_params
+
+        truncated_desc = desc[:max(10, cols - len(prefix) - len(command_name) - 10)] + "..."
+        return f"{prefix}{command_name}: {truncated_desc}"
+
     if cmd in ALIASES:
         real_cmd = ALIASES[cmd].split()[0]
         real_info = COMMANDS.get(real_cmd)
-
+        prefix = f"단축어: {cmd} → {ALIASES[cmd]} | "
+        
         if real_info:
-            params = ", ".join(real_info["params"]) if real_info["params"] else "파라미터 없음"
-            return HTML(
-                f"<bottom-toolbar>"
-                f"단축 명령어: {cmd} → {ALIASES[cmd]} | "
-                f"{real_cmd}: {real_info['desc']} | "
-                f"파라미터: {params} | "
-                f"예시: {real_info['example']}"
-                f"</bottom-toolbar>"
-            )
-
-        return HTML(
-            f"<bottom-toolbar>"
-            f"단축 명령어: {cmd} → {ALIASES[cmd]}"
-            f"</bottom-toolbar>"
-        )
+            content = format_toolbar_content(prefix, real_cmd, real_info)
+        else:
+            content = f"단축 명령어: {cmd} → {ALIASES[cmd]}"
+            if len(content) > cols - 5:
+                content = f"{cmd} → {ALIASES[cmd]}"
+        return HTML(f"<bottom-toolbar>{content}</bottom-toolbar>")
 
     if cmd in COMMANDS:
-        info = COMMANDS[cmd]
-        params = ", ".join(info["params"]) if info["params"] else "파라미터 없음"
-
-        return HTML(
-            f"<bottom-toolbar>"
-            f"{cmd} | {info['desc']} | "
-            f"파라미터: {params} | "
-            f"예시: {info['example']}"
-            f"</bottom-toolbar>"
-        )
+        content = format_toolbar_content("", cmd, COMMANDS[cmd])
+        return HTML(f"<bottom-toolbar>{content}</bottom-toolbar>")
 
     similar = difflib.get_close_matches(cmd, list(COMMANDS.keys()) + list(ALIASES.keys()), n=1)
 
     if similar:
-        return HTML(
-            f"<bottom-toolbar>"
-            f"'{cmd}' 명령어를 찾을 수 없습니다. "
-            f"혹시 '{similar[0]}'를 입력하려고 했나요?"
-            f"</bottom-toolbar>"
-        )
+        msg = f"'{cmd}' 없음. 혹시 '{similar[0]}'?"
+        if len(msg) > cols - 5:
+            msg = f"혹시 '{similar[0]}'?"
+        return HTML(f"<bottom-toolbar>{msg}</bottom-toolbar>")
 
-    return HTML(
-        "<bottom-toolbar>"
-        "등록되지 않은 명령어입니다. 리눅스 명령어라면 실행은 가능할 수 있습니다."
-        "</bottom-toolbar>"
-    )
+    msg = "등록되지 않은 명령어입니다. 리눅스 명령어라면 실행은 가능할 수 있습니다."
+    if len(msg) > cols - 5:
+        msg = "등록되지 않은 명령어 (실행은 시도함)"
+    return HTML(f"<bottom-toolbar>{msg}</bottom-toolbar>")
+
+
+def check_background_jobs():
+    global background_processes
+    still_running = []
+    for job in background_processes:
+        p = job["process"]
+        cmd_line = job["line"]
+        ret = p.poll()
+        if ret is not None:
+            print(f"\n[백그라운드 작업 완료] PID: {p.pid} (종료 코드: {ret}) - {cmd_line}")
+        else:
+            still_running.append(job)
+    background_processes = still_running
 
 
 def main():
@@ -414,7 +512,7 @@ def main():
 
     @kb.add("c-l")
     def _(event):
-        os.system("clear")
+        os.system("cls" if os.name == "nt" else "clear")
 
     @kb.add("f2")
     def _(event):
@@ -437,6 +535,7 @@ def main():
     print("exit를 입력하면 종료합니다.\n")
 
     while True:
+        check_background_jobs()
         cwd = os.getcwd()
 
         try:
@@ -455,11 +554,19 @@ def main():
         if not line:
             continue
 
+        # 환경 변수 치환 ($VAR 및 ${VAR} 형태)
+        line = os.path.expandvars(line)
+
+        # 백그라운드 실행 여부 파악 (& 기호)
+        is_background = False
+        if line.endswith("&"):
+            is_background = True
+            line = line[:-1].strip()
+
         line = expand_alias(line)
 
         try:
             args = shlex.split(line)
-
         except ValueError:
             print("오류: 따옴표 사용이 올바르지 않습니다.")
             continue
@@ -467,13 +574,21 @@ def main():
         if not args:
             continue
 
-        if args[0] in COMMANDS:
-            handled = run_builtin(args)
+        # 백그라운드 파싱으로 인해 args 내부에서 & 제거
+        if is_background and args and args[-1] == "&":
+            args = args[:-1]
+
+        if not args:
+            continue
+
+        # export/history 등도 builtin으로 취급할 수 있도록 명시적으로 포함
+        if args[0] in COMMANDS or args[0] in ["export", "history"]:
+            handled = run_builtin(args, session=session)
 
             if not handled:
-                run_external(args)
+                run_external(line, args, is_background=is_background)
         else:
-            run_external(args)
+            run_external(line, args, is_background=is_background)
 
 
 if __name__ == "__main__":

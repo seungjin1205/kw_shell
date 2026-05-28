@@ -1,0 +1,177 @@
+{
+  "help": {
+    "desc": "사용 가능한 명령어 목록을 보여줍니다.",
+    "params": [],
+    "example": "help"
+  },
+  "exit": {
+    "desc": "커스텀 쉘을 종료합니다.",
+    "params": [],
+    "example": "exit"
+  },
+  "clear": {
+    "desc": "화면을 깨끗하게 지웁니다.",
+    "params": [],
+    "example": "clear"
+  },
+  "pwd": {
+    "desc": "현재 작업 중인 디렉터리 위치를 보여줍니다.",
+    "params": [],
+    "example": "pwd"
+  },
+  "cd": {
+    "desc": "디렉터리를 이동합니다.",
+    "params": ["..", "~", "/", "./"],
+    "example": "cd .."
+  },
+  "ls": {
+    "desc": "현재 디렉터리의 파일 목록을 보여줍니다.",
+    "params": ["-l", "-a", "-al", "-lh"],
+    "example": "ls -al"
+  },
+  "mkdir": {
+    "desc": "새 디렉터리를 만듭니다.",
+    "params": ["폴더이름"],
+    "example": "mkdir test"
+  },
+  "touch": {
+    "desc": "새 파일을 만들거나 파일의 수정 시간을 갱신합니다.",
+    "params": ["파일이름"],
+    "example": "touch memo.txt"
+  },
+  "cat": {
+    "desc": "파일 내용을 출력합니다.",
+    "params": ["파일이름"],
+    "example": "cat memo.txt"
+  },
+  "grep": {
+    "desc": "파일 내용에서 특정 문자열이나 패턴을 검색합니다.",
+    "params": ["\"검색어\"", "-n", "-i", "-r"],
+    "example": "grep -n \"main\" program.c"
+  },
+  "cp": {
+    "desc": "파일이나 디렉터리를 복사합니다.",
+    "params": ["원본", "대상", "-r"],
+    "example": "cp a.txt b.txt"
+  },
+  "mv": {
+    "desc": "파일을 이동하거나 이름을 바꿉니다.",
+    "params": ["원본", "대상"],
+    "example": "mv old.txt new.txt"
+  },
+  "rm": {
+    "desc": "파일을 삭제합니다. 주의해서 사용해야 합니다.",
+    "params": ["파일이름", "-r", "-i"],
+    "example": "rm -i memo.txt"
+  },
+  "df": {
+    "desc": "디스크 사용량을 보여줍니다.",
+    "params": ["-h"],
+    "example": "df -h"
+  },
+  "free": {
+    "desc": "메모리 사용량을 보여줍니다.",
+    "params": ["-h"],
+    "example": "free -h"
+  },
+  "ps": {
+    "desc": "실행 중인 프로세스를 보여줍니다.",
+    "params": ["aux", "-ef"],
+    "example": "ps aux"
+  },
+  "explain": {
+    "desc": "명령어의 의미와 예시를 초보자용으로 설명합니다.",
+    "params": ["명령어"],
+    "example": "explain grep"
+  },
+  "find": {
+    "desc": "파일이나 디렉터리를 조건으로 검색합니다.",
+    "params": [". -name \"*.txt\"", "-type f", "-type d"],
+    "example": "find . -name \"*.py\""
+  },
+  "chmod": {
+    "desc": "파일이나 디렉터리의 권한을 변경합니다.",
+    "params": ["+x", "755", "644"],
+    "example": "chmod +x script.sh"
+  },
+  "chown": {
+    "desc": "파일이나 디렉터리의 소유자 및 그룹을 변경합니다.",
+    "params": ["소유자:그룹"],
+    "example": "chown root:root file.txt"
+  },
+  "tar": {
+    "desc": "여러 파일을 아카이브로 묶거나 압축을 해제합니다.",
+    "params": ["-zxvf", "-zcvf", "-xvf", "-cvf"],
+    "example": "tar -zxvf archive.tar.gz"
+  },
+  "ssh": {
+    "desc": "원격 서버에 안전하게 보안 쉘로 접속합니다.",
+    "params": ["사용자@호스트"],
+    "example": "ssh ubuntu@192.168.1.10"
+  },
+  "kill": {
+    "desc": "프로세스를 강제로 혹은 안전하게 종료합니다.",
+    "params": ["-9 PID", "PID"],
+    "example": "kill -9 1234"
+  },
+  "curl": {
+    "desc": "웹 서버와 데이터를 주고받거나 파일을 다운로드합니다.",
+    "params": ["-O", "-L", "-X POST"],
+    "example": "curl -O https://example.com/file.zip"
+  },
+  "wget": {
+    "desc": "웹 주소(URL)로부터 파일을 다운로드합니다.",
+    "params": ["다운로드URL"],
+    "example": "wget https://example.com/file.zip"
+  },
+  "head": {
+    "desc": "파일의 앞부분 일부 행을 출력합니다.",
+    "params": ["-n 10"],
+    "example": "head -n 10 file.txt"
+  },
+  "tail": {
+    "desc": "파일의 뒷부분 일부 행을 출력합니다.",
+    "params": ["-n 10", "-f"],
+    "example": "tail -n 10 -f system.log"
+  },
+  "sudo": {
+    "desc": "관리자(root) 권한으로 명령어를 실행합니다.",
+    "params": ["명령어"],
+    "example": "sudo apt update"
+  },
+  "apt": {
+    "desc": "데비안 계열(Ubuntu 등) 패키지를 설치하거나 관리합니다.",
+    "params": ["update", "upgrade", "install 패키지", "remove 패키지"],
+    "example": "sudo apt install git"
+  },
+  "systemctl": {
+    "desc": "시스템 서비스의 상태를 제어하거나 모니터링합니다.",
+    "params": ["status 서비스", "start 서비스", "stop 서비스", "restart 서비스"],
+    "example": "systemctl status sshd"
+  },
+  "du": {
+    "desc": "파일이나 디렉터리가 차지하고 있는 실제 디스크 용량을 확인합니다.",
+    "params": ["-sh", "-h"],
+    "example": "du -sh *"
+  },
+  "ping": {
+    "desc": "네트워크 연결 상태 및 응답 속도를 확인합니다.",
+    "params": ["-c 4 호스트"],
+    "example": "ping -c 4 google.com"
+  },
+  "ip": {
+    "desc": "네트워크 인터페이스 IP 주소 및 라우팅 상태를 확인합니다.",
+    "params": ["addr", "route"],
+    "example": "ip addr"
+  },
+  "export": {
+    "desc": "환경 변수를 새롭게 정의하거나 현재의 변수 목록을 확인합니다.",
+    "params": ["변수명=값"],
+    "example": "export MY_VAR=hello"
+  },
+  "history": {
+    "desc": "쉘 세션 동안 사용자가 입력했던 명령어 히스토리 목록을 확인합니다.",
+    "params": [],
+    "example": "history"
+  }
+}
