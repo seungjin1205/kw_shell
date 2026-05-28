@@ -5,6 +5,7 @@ import shlex
 import subprocess
 import difflib
 import json
+import getpass
 from pathlib import Path
 
 from prompt_toolkit import PromptSession
