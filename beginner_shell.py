@@ -531,7 +531,7 @@ def build_bottom_toolbar():
         line1 = f"'{cmd}' \uba85\ub839\uc5b4\ub9ac \ucc3e\uc744 \uc218 \uc5c6\uc2b5\ub2c8\ub2e4."
         line2 = f"\ud639\uc2dc '{similar[0]}'\ub9ac \uc785\ub825\ud558\ub824\uace0 \ud588\ub098\uc694?"
         if len(line1) > cols - 5:
-            line1 = f"'{cmd}' \ucc3e\uc744 \uc218 \uc5c6\uc74m"
+            line1 = f"'{cmd}' \ucc3e\uc744 \uc218 \uc5c6\uc74c"
             line2 = f"\ud639\uc2dc '{similar[0]}'?"
         return HTML(f"<bottom-toolbar>{line1}\n{line2}</bottom-toolbar>")
 
