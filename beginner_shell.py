@@ -163,13 +163,19 @@ class BeginnerShellCompleter(Completer):
 
             # 명령어별 추천 파라미터
             if cmd in COMMANDS:
-                for param in COMMANDS[cmd]["params"]:
+                params_data = COMMANDS[cmd].get("params", {})
+                if isinstance(params_data, list):
+                    params_dict = {p: f"{cmd} 명령어에서 자주 쓰는 옵션/인자" for p in params_data}
+                else:
+                    params_dict = params_data
+                    
+                for param, p_desc in params_dict.items():
                     if str(param).startswith(current):
                         yield Completion(
                             param,
                             start_position=-len(current),
                             display=param,
-                            display_meta=f"{cmd} 명령어에서 자주 쓰는 옵션/인자",
+                            display_meta=p_desc,
                         )
 
             # 현재 폴더의 파일/디렉터리 자동완성
@@ -216,7 +222,11 @@ def explain_command(cmd):
         return
 
     info = COMMANDS[cmd]
-    params = ", ".join(info["params"]) if info["params"] else "없음"
+    params_data = info.get("params", {})
+    if isinstance(params_data, list):
+        params = ", ".join(params_data) if params_data else "없음"
+    else:
+        params = ", ".join(params_data.keys()) if params_data else "없음"
 
     print(f"\n[{cmd}] 명령어 설명")
     print(f"의미: {info['desc']}")
@@ -501,7 +511,11 @@ def build_bottom_toolbar():
 
     def format_toolbar_content(prefix, command_name, info):
         desc = info.get("desc", "")
-        params_list = info.get("params", [])
+        params_data = info.get("params", {})
+        if isinstance(params_data, list):
+            params_list = params_data
+        else:
+            params_list = list(params_data.keys())
         params = ", ".join(params_list) if params_list else "파라미터 없음"
         example = info.get("example", "")
 
