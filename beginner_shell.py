@@ -8,7 +8,7 @@ import json
 import getpass
 import re
 from pathlib import Path
-
+from prompt_toolkit.application.run_in_terminal import run_in_terminal
 from prompt_toolkit import PromptSession
 from prompt_toolkit.application.current import get_app
 from prompt_toolkit.completion import Completer, Completion
@@ -602,15 +602,36 @@ def main():
 
     @kb.add("c-l")
     def _(event):
-        os.system("cls" if os.name == "nt" else "clear")
+        """
+        Ctrl + L
+        prompt_toolkit 화면을 안전하게 지우고,
+        현재 프롬프트를 다시 그립니다.
+        """
+        event.app.renderer.clear()
+        event.app.invalidate()
+
 
     @kb.add("f2")
     def _(event):
-        print_help()
+        """
+        F2
+        도움말을 터미널에 안전하게 출력합니다.
+        prompt_toolkit 입력 화면과 출력 화면이 꼬이지 않도록
+        run_in_terminal()을 사용합니다.
+        """
+        run_in_terminal(print_help)
+        event.app.invalidate()
+
 
     @kb.add("c-space")
     def _(event):
-        event.app.current_buffer.start_completion(select_first=False)
+        """
+        Ctrl + Space
+        자동완성 목록을 엽니다.
+        """
+        buffer = event.app.current_buffer
+        buffer.start_completion(select_first=False)
+        event.app.invalidate()
 
     def get_prompt():
         try:
