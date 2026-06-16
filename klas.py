@@ -1,9 +1,10 @@
 from playwright.sync_api import sync_playwright
 from datetime import datetime
 import re
+import getpass
 
 ID = input("학번 또는 사번을 입력해주세요 : ")
-PW = input("비밀번호를 입력해주세요 : ")
+PW = getpass.getpass("비밀번호를 입력해주세요 : ")
 
 with sync_playwright() as p:
     browser = p.chromium.launch(headless=True)
