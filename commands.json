@@ -228,5 +228,10 @@
     "desc": "등록된 단축 명령어(Alias) 설정을 해제합니다.",
     "params": ["단축어"],
     "example": "unalias ll"
+  },
+  "klas": {
+    "desc": "KLAS에서 미마감 과제 목록을 조회하여 보여줍니다.",
+    "params": [],
+    "example": "klas"
   }
 }

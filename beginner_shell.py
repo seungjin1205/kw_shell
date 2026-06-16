@@ -309,6 +309,23 @@ def run_builtin(args, session=None):
         else:
             print("히스토리 내역이 없습니다.")
 
+    elif cmd == "klas":
+        script_dir = Path(__file__).parent
+        klas_script = script_dir / "klas.py"
+        if not klas_script.exists():
+            print("오류: klas.py 스크립트 파일을 찾을 수 없습니다.")
+        else:
+            import sys
+            try:
+                subprocess.run(
+                    [sys.executable, str(klas_script)],
+                    stdin=sys.stdin,
+                    stdout=sys.stdout,
+                    stderr=sys.stderr,
+                )
+            except Exception as e:
+                print(f"klas 실행 중 오류 발생: {e}")
+
     else:
         return False
 
@@ -702,8 +719,8 @@ def main():
                 print(f"변수 설정 완료 (로컬 스코프): {key} = '{val}'")
                 continue
 
-        # export/history 등도 builtin으로 취급할 수 있도록 명시적으로 포함
-        if args[0] in COMMANDS or args[0] in ["export", "history"]:
+        # export/history/klas 등도 builtin으로 취급할 수 있도록 명시적으로 포함
+        if args[0] in COMMANDS or args[0] in ["export", "history", "klas"]:
             handled = run_builtin(args, session=session)
 
             if not handled:
